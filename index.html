@@ -13,7 +13,17 @@
 
     <div x-data="app()" style="max-width:900px; margin:auto;">
 
-        <h2>Compress Image (No Save, Browser Only)</h2>
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+
+            <!-- TEXT -->
+            <h2 style="margin:0;">Compress Image</h2>
+
+            <!-- IMAGE -->
+            <div style="width:80px; height:80px; overflow:hidden; border:1px solid #999;">
+                <img src="image/icon.jpeg" style="width:100%; height:100%; object-fit:cover;">
+            </div>
+
+        </div>
 
         <!-- UPLOAD -->
         <div style="border:2px dashed #999; padding:30px; text-align:center; cursor:pointer;"
