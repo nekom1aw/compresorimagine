@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Compressor</title>
+
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+
+<body style="background:#e9e4dc; padding:20px; font-family:sans-serif;">
+
+    <div x-data="app()" style="max-width:900px; margin:auto;">
+
+        <h2>Compress Image (No Save, Browser Only)</h2>
+
+        <!-- UPLOAD -->
+        <div style="border:2px dashed #999; padding:30px; text-align:center; cursor:pointer;"
+            @click="$refs.file.click()" @drop.prevent="handleDrop($event)" @dragover.prevent>
+
+            <input type="file" multiple accept="image/*" x-ref="file" hidden @change="handleFiles($event)">
+            Klik / Drop gambar
+        </div>
+
+        <!-- PROGRESS -->
+        <div x-show="uploading" style="margin-top:10px;">
+            Processing <span x-text="processed"></span>/<span x-text="total"></span>
+        </div>
+
+        <!-- DOWNLOAD ALL -->
+        <button x-show="results.length > 1" @click="downloadAll"
+            style="margin:15px 0; padding:10px; background:black; color:white; width:100%;">
+            Download All (<span x-text="results.length"></span>)
+        </button>
+
+        <!-- TABLE -->
+        <table x-show="results.length" border="1" width="100%" cellpadding="10" style="background:white;">
+            <thead>
+                <tr>
+                    <th>Image</th>
+                    <th>Size</th>
+                    <th>Hemat</th>
+                    <th>Download</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <template x-for="(item,i) in results" :key="i">
+                    <tr>
+                        <td>
+                            <img :src="item.preview" width="50"><br>
+                            <small x-text="item.name"></small>
+                        </td>
+
+                        <td>
+                            <small x-text="'Ori: ' + item.originalSize"></small><br>
+                            <b x-text="item.compressedSize"></b>
+                        </td>
+
+                        <td>
+                            <span style="color:green;" x-text="'↓ ' + item.saved"></span>
+                        </td>
+
+                        <td>
+                            <a :href="item.url" :download="item.name">Download</a>
+                        </td>
+                    </tr>
+                </template>
+            </tbody>
+        </table>
+
+    </div>
+
+    <script>
+        function app() {
+            return {
+                results: [],
+                uploading: false,
+                total: 0,
+                processed: 0,
+
+                format(bytes) {
+                    if (bytes < 1024) return bytes + ' B';
+                    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+                    return (bytes / 1048576).toFixed(2) + ' MB';
+                },
+
+                handleDrop(e) {
+                    this.process(e.dataTransfer.files);
+                },
+
+                handleFiles(e) {
+                    this.process(e.target.files);
+                    e.target.value = '';
+                },
+
+                async process(files) {
+                    let imgs = [...files].filter(f => f.type.startsWith('image/'));
+
+                    this.uploading = true;
+                    this.total = imgs.length;
+                    this.processed = 0;
+
+                    for (let f of imgs) {
+                        await this.compress(f);
+                        this.processed++;
+                    }
+
+                    this.uploading = false;
+                },
+
+                compress(file) {
+                    return new Promise(resolve => {
+                        let reader = new FileReader();
+                        reader.readAsDataURL(file);
+
+                        reader.onload = (e) => {
+                            let img = new Image();
+                            img.src = e.target.result;
+
+                            img.onload = () => {
+                                let canvas = document.createElement('canvas');
+                                let ctx = canvas.getContext('2d');
+
+                                canvas.width = img.width;
+                                canvas.height = img.height;
+                                ctx.drawImage(img, 0, 0);
+
+                                let quality = 0.9;
+                                let target = 1024 * 1024;
+
+                                const run = () => {
+                                    canvas.toBlob(blob => {
+                                        if (blob.size > target && quality > 0.1) {
+                                            quality -= 0.1;
+                                            run();
+                                        } else {
+
+                                            let url = URL.createObjectURL(blob);
+
+                                            let saved = ((1 - blob.size / file.size) * 100).toFixed(1) + '%';
+
+                                            this.results.push({
+                                                name: file.name.replace(/\.[^/.]+$/, "") + '.jpg',
+                                                preview: url,
+                                                url: url,
+                                                originalSize: this.format(file.size),
+                                                compressedSize: this.format(blob.size),
+                                                saved: saved
+                                            });
+
+                                            resolve();
+                                        }
+                                    }, 'image/jpeg', quality);
+                                };
+
+                                run();
+                            }
+                        }
+                    });
+                },
+
+                downloadAll() {
+                    this.results.forEach(item => {
+                        let a = document.createElement('a');
+                        a.href = item.url;
+                        a.download = item.name;
+                        document.body.appendChild(a);
+                        a.click();
+                        a.remove();
+                    });
+                }
+            }
+        }
+    </script>
+
+</body>
+
+</html>
