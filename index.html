@@ -135,63 +135,39 @@
                                 let canvas = document.createElement('canvas');
                                 let ctx = canvas.getContext('2d');
 
-                                let width = img.width;
-                                let height = img.height;
+                                canvas.width = img.width;
+                                canvas.height = img.height;
+                                ctx.drawImage(img, 0, 0);
 
                                 let quality = 0.9;
-                                let target = 1024 * 1024; // 1MB
-                                let mimeType = file.type;
+                                let target = 1024 * 1024;
 
-                                const processImage = () => {
-                                    canvas.width = width;
-                                    canvas.height = height;
-                                    ctx.drawImage(img, 0, 0, width, height);
-
+                                const run = () => {
                                     canvas.toBlob(blob => {
+                                        if (blob.size > target && quality > 0.1) {
+                                            quality -= 0.1;
+                                            run();
+                                        } else {
 
-                                        // ===== PNG (pakai resize paksa) =====
-                                        if (mimeType === 'image/png') {
+                                            let url = URL.createObjectURL(blob);
 
-                                            if (blob.size > target && width > 500) {
-                                                width *= 0.8;
-                                                height *= 0.8;
-                                                processImage();
-                                                return;
-                                            }
+                                            let saved = ((1 - blob.size / file.size) * 100).toFixed(1) + '%';
 
+                                            this.results.push({
+                                                name: file.name.replace(/\.[^/.]+$/, "") + '.jpg',
+                                                preview: url,
+                                                url: url,
+                                                originalSize: this.format(file.size),
+                                                compressedSize: this.format(blob.size),
+                                                saved: saved
+                                            });
+
+                                            resolve();
                                         }
-
-                                        // ===== JPG (pakai quality) =====
-                                        else if (mimeType === 'image/jpeg' || mimeType === 'image/jpg') {
-
-                                            if (blob.size > target && quality > 0.1) {
-                                                quality -= 0.1;
-                                                processImage();
-                                                return;
-                                            }
-
-                                        }
-
-                                        // ===== FINAL =====
-                                        let url = URL.createObjectURL(blob);
-                                        let saved = ((1 - blob.size / file.size) * 100).toFixed(1) + '%';
-
-                                        this.results.push({
-                                            name: file.name,
-                                            preview: url,
-                                            url: url,
-                                            originalSize: this.format(file.size),
-                                            compressedSize: this.format(blob.size),
-                                            saved: saved
-                                        });
-
-                                        resolve();
-
-                                    }, mimeType, mimeType === 'image/png' ? undefined : quality);
-
+                                    }, 'image/jpeg', quality);
                                 };
 
-                                processImage();
+                                run();
                             }
                         }
                     });
